@@ -8,7 +8,7 @@ The goal is to merge all 3 above tasks into one, and create a much better workfl
 By implementing a front-end framework object and using a single middleware, you can dynamically produce the following output.
 
 The output:
-"""
+```å
 GET "/db/buckets/1"
   > (Auth check) If row owner === current user in session, return row(s) with id of 1
   > (No auth check) return row(s) with id of 1
@@ -29,10 +29,10 @@ PUT "/db/users" (Currently not functional as of update 0.0.1)
 DELETE "/db/buckets/1"
   > If you are authorized to modify this row, it will delete this row
 
-"""
+```
 
 The setup:
-"""
+```
 const express = require('express')
 
 const {
@@ -103,6 +103,6 @@ app.use(
         schema
     })
 )
-"""
+```
 
 This is just the intial commit, there is much more to come!
