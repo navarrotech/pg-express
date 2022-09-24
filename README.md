@@ -1,7 +1,7 @@
 # pg-express
 Automated CRUD generated urls for express based on table schemas
 
-##Installation
+## Installation
 ```
 npm install pg-express
 ```
@@ -12,7 +12,7 @@ yarn install pg-express
 
 Ever get tired of having to write migration, AND crud routes, AND do auth validation for all of your PostGres tables?
 
-##The Goal:
+## The Goal:
 The goal is to merge all 3 above tasks into one, and create a much better workflow based on automated middlewares.
 
 By implementing a front-end framework object and using a single middleware, you can dynamically produce the following output.
@@ -41,7 +41,7 @@ DELETE "/db/buckets/1"
 
 ```
 
-##The setup:
+## The setup:
 ```
 const express = require('express')
 
