@@ -1,5 +1,5 @@
 # pg-express
-Automated CRUD generated urls for express based on table schemas
+Lightweight automated CRUD generated public urls, with session based authentication checks for express based on table schemas, with automated migration.
 
 ## Installation
 ```
@@ -18,7 +18,7 @@ The goal is to merge all 3 above tasks into one, and create a much better workfl
 By implementing a front-end framework object and using a single middleware, you can dynamically produce the following output.
 
 ## The output:
-```å
+```
 GET "/db/buckets/1"
   > (Auth check) If row authorized user === current user in session, return row(s) with id of 1
   > (No auth check) return row(s) with id of 1
