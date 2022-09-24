@@ -72,10 +72,10 @@ function migrate(){
         console.log('[PostgresExpress] Beginning Migration: ', queries)
     }
 
-    // Postgres
-    //     .query(queries.join(';'))
-    //     .catch(e => { console.log('[PostgresExpress]', e.stack) })
-    //     .then(() => { if(options.verbose){ console.log('[PostgresExpress] Migration finished') } })
+    Postgres
+        .query(queries.join(';'))
+        .catch(e => { console.log('[PostgresExpress]', e.stack) })
+        .then(() => { if(options.verbose){ console.log('[PostgresExpress] Migration finished') } })
 }
 
 function generateAPI(){
@@ -89,15 +89,12 @@ function generateAPI(){
 
     return function(req, res, next){
         const auth_session_id = req.session && req.session.auth_id ? req.session.auth_id : null
-        // TODO: Sorting
         // TODO: Built in encryption
 
         const path = req.path
 
         let db_table = null,
             row_id = null
-
-        console.log({paths})
 
         paths.forEach(function(p){
             if(path.startsWith('/db/' + p)){ // Get the table
@@ -150,12 +147,23 @@ function generateAPI(){
                 if(offset && isNaN(offset)){ offset = 0 }
                 if(!offset){ offset = 0 }
 
+                let sort_pattern = (req.query.ascending || req.query.sort_asc)
+                    ? 'ASC'
+                    : (req.query.descending || req.query.sort_desc)
+                    ? 'DSC'
+                    : 'ASC' // Default
+
+                let sort = (req.query.sort) ? db_table.columns.find(a => a.column_name === req.query.sort) : ''
+                if(sort){ sort = ' ORDER BY ' + sort.column_name + ' ' + sort_pattern }
+                if(!sort){ sort = '' }
+
                 queryString += 'SELECT * FROM '
                 queryString += db_table.name
                 queryString += ' WHERE '
                 queryString += auth_insert
                 queryString += ' LIMIT ' + limit
                 queryString += ' OFFSET ' + offset
+                queryString += sort
                 queryString += ';'
 
                 // console.log({ queryString })
@@ -270,11 +278,11 @@ function generateAPI(){
                 queryString += ' RETURNING *;'
             }
 
-            console.log({ queryString })
-            if(['PUT', 'POST'].includes(req.method)){
-                console.log({ queryParams })
-                return res.send('Completed')
-            }
+            // console.log({ queryString })
+            // if(['PUT', 'POST'].includes(req.method)){
+            //     console.log({ queryParams })
+            //     return res.send('Completed')
+            // }
 
             if(queryString){
                 return Postgres
