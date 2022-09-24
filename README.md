@@ -1,13 +1,23 @@
 # pg-express
 Automated CRUD generated urls for express based on table schemas
 
+##Installation
+```
+npm install pg-express
+```
+or
+```
+yarn install pg-express
+```
+
 Ever get tired of having to write migration, AND crud routes, AND do auth validation for all of your PostGres tables?
 
+##The Goal:
 The goal is to merge all 3 above tasks into one, and create a much better workflow based on automated middlewares.
 
 By implementing a front-end framework object and using a single middleware, you can dynamically produce the following output.
 
-The output:
+##The output:
 ```å
 GET "/db/buckets/1"
   > (Auth check) If row owner === current user in session, return row(s) with id of 1
@@ -23,7 +33,7 @@ GET "/db/buckets?limit=10&offset=10"
 POST "/db/users/1"
   > If you are user with id of 1, you can update it
 
-PUT "/db/users" (Currently not functional as of update 0.0.1)
+PUT "/db/users"
   > Creates a new row using form body as columns that match column_names
 
 DELETE "/db/buckets/1"
@@ -31,7 +41,7 @@ DELETE "/db/buckets/1"
 
 ```
 
-The setup:
+##The setup:
 ```
 const express = require('express')
 
@@ -79,11 +89,14 @@ schema.append(
 // Call session before this!
 app.use(
     (req, res, next) => {
-        // auth_id is required for tables marked require_auth
+        // Required middleware parameter for this to operate correctly
         req.session = { auth_id: 1 }
         next();
     }
 )
+
+// Call body parsing middleware before this!
+app.use(express.json())
 
 app.use(
     PostgresExpress({
@@ -105,4 +118,4 @@ app.use(
 )
 ```
 
-This is just the intial commit, there is much more to come!
+This is just the intial version, there is much more to come!

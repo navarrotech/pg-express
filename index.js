@@ -1,7 +1,6 @@
 const { Client, Pool } = require('pg')
 
 var options = {},
-    tables = [],
     Postgres
 
 function getConnection(){
@@ -37,6 +36,48 @@ function getConnection(){
     }
 }
 
+function migrate(){
+    let { schema } = options
+    schema = schema._generate()
+
+    const queries = [],
+        issues = []
+
+    
+    // Check that all tables exist
+    schema
+        .filter(a => a.type === 'table')
+        .forEach(table => {
+            queries.push(`CREATE IF NOT EXISTS ${table.name} (${
+                table.columns.map(a => {
+                    if(!a.column_name){ issues.push(`Missing column_name for a column in table (${table.name})`); return; }
+                    if(!a.data_type){ issues.push(`Missing data_type for column (${a.column_name}) in table (${table.name})`); return; }
+                    return a.column_name + ' ' + a.data_type + (a.constraints?(' ' + a.constraints):'')
+                }).join(',')
+            })`)
+        })
+        
+    // Check that all columns exist & are formatted correctly
+    schema
+        .filter(a => a.type === 'table')
+        .forEach(table => {
+            table.columns.forEach(column => {
+                if(!column.column_name || !column.data_type){ return; }
+                // queries.push(`SELECT ${column.column_name} FROM information_schema.columns WHERE table_name='${table.name}' and column_name='${column.column_name}';`)
+                queries.push(`ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${column.column_name} ${column.data_type} ${column.constraints?column.constraints:''}`)
+            })
+        })
+
+    if(options.verbose){
+        console.log('[PostgresExpress] Beginning Migration: ', queries)
+    }
+
+    // Postgres
+    //     .query(queries.join(';'))
+    //     .catch(e => { console.log('[PostgresExpress]', e.stack) })
+    //     .then(() => { if(options.verbose){ console.log('[PostgresExpress] Migration finished') } })
+}
+
 function generateAPI(){
     let { schema } = options
 
@@ -48,8 +89,7 @@ function generateAPI(){
 
     return function(req, res, next){
         const auth_session_id = req.session && req.session.auth_id ? req.session.auth_id : null
-        // TODO: Sort
-        // TODO: Auth rules && Auth implementation
+        // TODO: Sorting
         // TODO: Built in encryption
 
         const path = req.path
@@ -57,15 +97,20 @@ function generateAPI(){
         let db_table = null,
             row_id = null
 
-        paths.forEach(function(p){ if(path.startsWith('/db/' + p)){
-            db_table = schema.find(a => a.name === p) } // Get the table
-            row_id   = path.substring(('/db/'+p).length+1)
-            row_id   = row_id.includes('/')
-                ? row_id.substring(0, row_id.indexOf('/'))
-                : row_id
+        console.log({paths})
+
+        paths.forEach(function(p){
+            if(path.startsWith('/db/' + p)){ // Get the table
+                db_table = schema.find(a => a.name === p)
+            }
         })
 
         if(db_table && db_table.name){
+            row_id   = path.substring(('/db/'+db_table.name).length+1)
+            row_id   = row_id.includes('/')
+                ? row_id.substring(0, row_id.indexOf('/'))
+                : row_id
+                
             let auth_column = db_table.columns.find(a => a.auth_index)
             if(db_table.require_auth){
                 if(!auth_session_id){
@@ -91,8 +136,10 @@ function generateAPI(){
             else{ throw new Error('Index not set for table ' + db_table.name) }
             
             let queryString = ''
+            let queryParams = []
             let auth_insert = db_table.require_auth ? (auth_column.column_name + ' = ' + auth_session_id) : ''
 
+            // For lists
             if(req.method === 'GET' && !row_id){
 
                 let limit = (req.query.limit) ? parseInt(req.query.limit) : ''
@@ -151,26 +198,65 @@ function generateAPI(){
             }
             // CREATE row
             else if(req.method === 'PUT'){ 
+                let cols = []
+                if(req.body){
+                    Object
+                        .keys(req.body)
+                        .forEach(key => {
+                            let col = (db_table && db_table.columns.find(a => a.column_name === key)) || null
+                            if(!col){ return; }
+                            cols.push({ column:col, value: req.body[key] })
+                        })
+                }
+                else {
+                    console.warn('[PostgresExpress] Warning: req.body is null and we couldn\'t process your PUT request! Make sure to use a body parser before calling PostgresExpress middleware.')
+                    return res.status(500).send({ success: false, payload: null, message: 'No request body found: Unable to process query' })
+                }
+
                 queryString += 'INSERT INTO '
                 queryString += db_table.name
-
-                // TODO: Get columns from req.body && insert column=value stuff
-
+                queryString += '('
+                queryString += (cols.map(a => a.column.column_name).join(','))
+                queryString += ') '
+                queryString += 'VALUES ('
+                queryString += (cols.map((a,i) => '$' + (i+1)).join(','))
+                queryString += ') '
                 queryString += 'RETURNING *;'
+
+                queryParams = cols.map(a => a.value)
             } 
             // UPDATE row
             else if(req.method === 'POST'){ 
+
+                let cols = []
+                if(req.body){
+                    Object
+                        .keys(req.body)
+                        .forEach(key => {
+                            let col = (db_table && db_table.columns.find(a => a.column_name === key)) || null
+                            if(!col){ return; }
+                            cols.push({ column:col, value: req.body[key] })
+                        })
+                }
+                else {
+                    console.warn('[PostgresExpress] Warning: req.body is null and we couldn\'t process your POST request! Make sure to use a body parser before calling PostgresExpress middleware.')
+                    return res.status(500).send({ success: false, payload: null, message: 'No request body found: Unable to process query' })
+                }
+
                 queryString += 'UPDATE '
                 queryString += db_table.name
 
-                // TODO: Get columns from req.body && insert column=value stuff
+                queryString += ' SET '
+                queryString += (cols.map((a,i) => a.column.column_name + ' = $' + (i+1)).join(','))
 
                 queryString += ' WHERE '
                 queryString += (auth_insert?auth_insert+' AND ':'')
                 queryString += index
                 queryString += ' = '
                 queryString += row_id
-                queryString += 'RETURNING *;'
+                queryString += ' RETURNING *;'
+
+                queryParams = cols.map(a => a.value)
             } 
             // DELETE row
             else if(req.method === 'DELETE'){ 
@@ -181,14 +267,18 @@ function generateAPI(){
                 queryString += index
                 queryString += ' = '
                 queryString += row_id
-                queryString += 'RETURNING *;'
+                queryString += ' RETURNING *;'
             }
 
-            // console.log({ queryString })
+            console.log({ queryString })
+            if(['PUT', 'POST'].includes(req.method)){
+                console.log({ queryParams })
+                return res.send('Completed')
+            }
 
             if(queryString){
                 return Postgres
-                    .query(queryString)
+                    .query(queryString, queryParams)
                     .then((result) => {
                         let payload = result.rows.length ? result.rows : null
 
@@ -216,9 +306,8 @@ function generateAPI(){
 }
 
 // Filter handles:
-//     > Encryption
-//     > Hidden columns
-
+//   > Encryption
+//   > Hidden columns
 function filterPayload(payload, columns){
     columns.forEach(column => {
         if(!column.hide_from_route){ return }
@@ -235,9 +324,8 @@ function PostgresExpress(opts){
 
     if(!opts){ throw new Error('[PostgresExpress] :: No options found! Please pass an object as the single function parameter when calling pg-express'); }
 
-    const { schema, connection } = opts
+    const { connection } = opts
 
-    // if(!schema){ throw new Error('[PostgresExpress] :: A schema has not been provided for pg-express! Please add a .sql schema file to continue'); }
     if(!connection){ throw new Error('[PostgresExpress] :: A connection object has not been provided to connect to postgres with!') }
 
     options = opts
@@ -248,6 +336,9 @@ function PostgresExpress(opts){
     Postgres
         .connect()
         .catch(err => console.error('[PostgresExpress]', err.stack))
+        .then(() => {
+            if(options.migration){ migrate() }
+        })
 
     // Postgres routing
     return generateAPI()

@@ -15,7 +15,7 @@ schema.append(
         name: 'users',
         require_auth: true,
         columns:[
-            { column_name:'id', data_type: 'BIGSERIAL', constraints: 'NOT NULL PRIMARY KEY', index:true, auth_id: true },
+            { column_name:'id', data_type: 'BIGSERIAL', constraints: 'NOT NULL PRIMARY KEY', index:true, auth_index: true },
             { column_name:'email', data_type: 'character', constraints: 'varying(120) NOT NULL UNIQUE' },
             { column_name:'password', data_type: 'character', constraints: 'varying(60)', hide_from_route:true, encryption: 'keyboard-cat' },
             { column_name:'first', data_type: 'character', constraints: 'varying(60)' },
@@ -33,14 +33,29 @@ schema.append(
         ]
     })
 )
+schema.append(
+    createTable({
+        name: 'testTable',
+        // require_auth: true,
+        columns:[
+            { column_name:'test_id', data_type: 'BIGSERIAL', constraints: 'NOT NULL PRIMARY KEY', index:true },
+            { column_name:'test_owner', data_type: 'BIGSERIAL', auth_index:true },
+            { column_name:'myText', data_type:'text' }
+        ]
+    })
+)
 
 // Call session before this!
 app.use(
     (req, res, next) => {
+        // Required middleware parameter for this to operate correctly
         req.session = { auth_id: 1 }
         next();
     }
 )
+
+// Call body parsing middleware before this!
+app.use(express.json())
 
 app.use(
     PostgresExpress({
@@ -51,7 +66,7 @@ app.use(
             idleTimeoutMillis: 10000,
             max: 10
         },
-        createDatabase: false,
+        migration: false,
         schema
     })
 )
