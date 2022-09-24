@@ -17,7 +17,7 @@ The goal is to merge all 3 above tasks into one, and create a much better workfl
 
 By implementing a front-end framework object and using a single middleware, you can dynamically produce the following output.
 
-##The output:
+## The output:
 ```å
 GET "/db/buckets/1"
   > (Auth check) If row owner === current user in session, return row(s) with id of 1
