@@ -9,13 +9,16 @@ or
 ```
 yarn install pg-express
 ```
-
+## The Goal:
 Ever get tired of having to write migration, AND crud routes, AND do auth validation for all of your PostGres tables?
 
-## The Goal:
-The goal is to merge all 3 above tasks into one, and create a much better workflow based on automated middlewares.
+The goal is to create a much better workflow for:
+  > Public CRUD Postgres operations
+  > Authentication verification
+  > Value parsing & string safety checks
+  > Postgres migration between environments and computers
 
-By implementing a front-end framework object and using a single middleware, you can dynamically produce the following output.
+By defining a front-end framework and using express middleware, you can dynamically use the following urls publicly to use CRUD faster!
 
 ## The output:
 ```
