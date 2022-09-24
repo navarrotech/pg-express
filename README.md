@@ -20,21 +20,31 @@ By implementing a front-end framework object and using a single middleware, you 
 ## The output:
 ```å
 GET "/db/buckets/1"
-  > (Auth check) If row owner === current user in session, return row(s) with id of 1
+  > (Auth check) If row authorized user === current user in session, return row(s) with id of 1
   > (No auth check) return row(s) with id of 1
 
 GET "/db/buckets"
-  > Will list all rows this owner is allowed to view
+  > Will list all rows this authorized user is allowed to view
 
 GET "/db/buckets?limit=10&offset=10"
   > Will list all rows this user is authorized to view, with pagination
   > Pagination defaults to limit 25 and offset 0 when unset.
 
 POST "/db/users/1"
-  > If you are user with id of 1, you can update it
+with BODY { "first":"Alex" }
+  > If you are user with id of 1, you can update this row
+  > Any parameter in JSON body request with key matching a column from your schema will be updated
+  > In body the key "first" matches column "first" in table "users" so column "first" and row 1 will be updated to value "Alex"
 
 PUT "/db/users"
+with BODY {
+    "first":    "Alex",
+    "last":     "Navarro",
+    "email":    "alex@navarrotech.net",
+    "password": "keyboard-cat"
+}
   > Creates a new row using form body as columns that match column_names
+  > In this case, it will match each body key (first, last, email, password) with the columns in our schema (first, last, email, password) and create a new row with those values.
 
 DELETE "/db/buckets/1"
   > If you are authorized to modify this row, it will delete this row
@@ -118,4 +128,4 @@ app.use(
 )
 ```
 
-This is just the intial version, there is much more to come!
+This is just the beginning, there is much more to come!

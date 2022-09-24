@@ -1,4 +1,5 @@
 const express = require('express')
+require('dotenv').config({ path:'./.env' })
 
 const {
     PostgresExpress,
@@ -60,7 +61,7 @@ app.use(express.json())
 app.use(
     PostgresExpress({
         mode: 'pool',
-        connection: '',
+        connection: process.env.DATABASE_URL,
         connectionConfig:{
             connectionTimeoutMillis: 0,
             idleTimeoutMillis: 10000,
