@@ -13,23 +13,23 @@ yarn install pg-express
 Ever get tired of having to write migration, AND crud routes, AND do auth validation for all of your PostGres tables?
 
 The goal is to create a much better workflow for:
-  > Public CRUD Postgres operations
-  > Authentication verification
-  > Value parsing & string safety checks
-  > Postgres migration between environments and computers
+  * Public CRUD Postgres operations
+  * Authentication verification
+  * Value parsing & string safety checks
+  * Postgres migration between environments and computers
 
 By defining a front-end framework and using express middleware, you can dynamically use the following urls publicly to use CRUD faster!
 
 ## The output:
 ```
-GET "/db/buckets/1"
+GET "/db/users/1"
   > (Auth check) If row authorized user === current user in session, return row(s) with id of 1
   > (No auth check) return row(s) with id of 1
 
-GET "/db/buckets"
+GET "/db/users"
   > Will list all rows this authorized user is allowed to view
 
-GET "/db/buckets?limit=10&offset=10"
+GET "/db/users?limit=10&offset=10"
   > Will list all rows this user is authorized to view, with pagination
   > Pagination defaults to limit 25 and offset 0 when unset.
 
@@ -49,7 +49,7 @@ with BODY {
   > Creates a new row using form body as columns that match column_names
   > In this case, it will match each body key (first, last, email, password) with the columns in our schema (first, last, email, password) and create a new row with those values.
 
-DELETE "/db/buckets/1"
+DELETE "/db/users/1"
   > If you are authorized to modify this row, it will delete this row
 
 ```
@@ -58,55 +58,42 @@ DELETE "/db/buckets/1"
 ```
 const express = require('express')
 
-const {
-    PostgresExpress,
-    createSchema,
-    createTable
-} = require('../index.js')
+const PostgresExpress = require('../index.js')
 
 const app = express()
 const { port=3000 } = process.env
 
-// Generate a schema that contains all of your data
-const schema = createSchema()
-
-// Add you tables to the schema table
-// (Automated migration coming soon)
-schema.append(
-    createTable({
-        name: 'users',
-        require_auth: true,
-        columns:[
-            // By adding index:true, this is what will be searched.
-            // Consider the following: "SELECT * FROM users WHERE index_column_name = 1" <-- index_column_name is what you're setting with 'index:true'
-            { column_name:'id', data_type: 'BIGSERIAL', constraints: 'NOT NULL PRIMARY KEY', index:true },
-            { column_name:'email', data_type: 'character', constraints: 'varying(120) NOT NULL UNIQUE' },
-            // When this route is called, we don't want to send the password back to the user. So with hide_from_route, it will exist in the database but won't be returned in any CRUD requests.
-            { column_name:'password', data_type: 'character', constraints: 'varying(60)', hide_from_route:true },
-            { column_name:'first', data_type: 'character', constraints: 'varying(60)' },
-            { column_name:'last', data_type: 'character', constraints: 'varying(60)' }
-        ]
-    })
-)
-schema.append(
-    createTable({
-        name: 'buckets',
-        require_auth: true,
-        columns:[
-            { column_name:'bucket_id', data_type: 'BIGSERIAL', constraints: 'NOT NULL PRIMARY KEY', index:true },
-            { column_name:'bucket_owner', data_type: 'INT', constraints: 'varying(60)', auth_index:true }
-        ]
-    })
-)
-
-// Call session before this!
-app.use(
-    (req, res, next) => {
-        // Required middleware parameter for this to operate correctly
-        req.session = { auth_id: 1 }
-        next();
-    }
-)
+// Generate a schema, so 
+const schema = {
+    tables: [
+        {
+            name: 'users',
+            security: {
+                read: (req, res) => {
+                    // Anyone can read any row in this table
+                    return true 
+                },
+                write: (req, res) => {
+                    // Write your own authorization rules! 
+                    if (req.session && req.session.user && req.session.user.id) {
+                        // Return a string that will compare a column to a value.
+                        // In this case, we return 'id = x' which our route will automatically compare with a "WHERE" operator.
+                        // The example below says the column "id" must match the user's session id in order to be editable
+                        return 'id = ' + req.session.user.id
+                    }
+                    return false // Return false to deny any editing
+                }
+            },
+            columns:[
+                { column_name:'id',       data_type: 'BIGSERIAL', constraints: 'NOT NULL PRIMARY KEY', index:true },
+                { column_name:'email',    data_type: 'character', constraints: 'varying(120) NOT NULL UNIQUE' },
+                { column_name:'password', data_type: 'character', constraints: 'varying(60)', hidden:true, encryption: '12345678901234567890123456789012' },
+                { column_name:'first',    data_type: 'character', constraints: 'varying(60)' },
+                { column_name:'last',     data_type: 'character', constraints: 'varying(60)' }
+            ]
+        }
+    ]
+}
 
 // Call body parsing middleware before this!
 app.use(express.json())
@@ -115,16 +102,16 @@ app.use(
     PostgresExpress({
         // Pool is currently default and only supported, client mode coming soon
         mode: 'pool',
-        // Add a connection string like 'postgres://user:pass:5432/database', or a postgres connection object
+        // Add a connection string like 'postgres://user:pass:5432/database', or a PG connection object
         connection: '',
-        // Any and all configurations in this object get passed when we generate our own connection to postgres.
+        // Any and all configurations in this object get passed if it generates it's own connection to pg object.
         connectionConfig:{
             connectionTimeoutMillis: 0,
             idleTimeoutMillis: 10000,
             max: 10
         },
-        // Migration is currently not functional, but will be supported soon
-        migrate: false,
+        // Migration will ensure tables and columns exist whenever booted onto new server or local environments.
+        migrate: true,
         // !important: Pass the schema to tell your middleware how to handle the table routes.
         schema
     })

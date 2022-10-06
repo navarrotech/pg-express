@@ -1,14 +1,14 @@
 {
   "name": "pg-express",
-  "version": "0.0.2",
-  "description": "",
+  "version": "0.0.21",
+  "description": "Lightweight automated CRUD generated public urls, with session based authentication checks for express based on table schemas, with automated migration.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "test": "nodemon test/test.js"
   },
   "author": "NavarroTech",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "pg": "^8.8.0"
   },
@@ -16,5 +16,23 @@
     "dotenv": "^16.0.2",
     "express": "^4.18.1",
     "nodemon": "^2.0.20"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/navarrotech/pg-express.git"
+  },
+  "keywords": [
+    "postgres",
+    "express",
+    "crud",
+    "migration",
+    "automation"
+  ],
+  "bugs": {
+    "url": "https://github.com/navarrotech/pg-express/issues"
+  },
+  "homepage": "https://github.com/navarrotech/pg-express#readme"
 }
