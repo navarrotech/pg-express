@@ -266,9 +266,17 @@ function generateAPI(){
         return Postgres
             .query(query, queryParams)
             .catch(e => {
+                let message = e.detail
                 // console.log('[PostgresExpress]', e);
-                return res.status(500).send({ success: false, payload: null, message: e.detail })
-                return null
+                if (options.verbose) {
+                    if(message) {
+                        console.log(`[PostgresExpress] :: Caught Error (${e.detail}) for => ${query}`)
+                    } else {
+                        message = e.message
+                        console.log(`[PostgresExpress] :: Caught Error for (${query}) => `, e)
+                    }
+                }
+                return res.status(409).send({ success: false, payload: null, message })
             })
             .then((result) => {
                 if (!result || !result.rows) { return; }
